@@ -1,0 +1,97 @@
+# .appveyor.yml
+
+# Build version
+version: '4.2.1.{build}'
+
+# Use the latest available toolchain
+image: Visual Studio 2019
+
+# fetch repository as zip archive
+shallow_clone: true
+
+# PRs do not increment the build number
+pull_requests:
+  do_not_increment_build_number: true
+
+# Default environment variables
+environment:
+  _IS_BUILD_CANARY: false
+  _RELEASE_NAME: ffmpeg
+  # FFMpeg features to be built
+  _FFMPEG_FEATURES: gpl,x264,vpx,avresample
+  # vcpkg envs
+  _VCPKG_PATH: C:\Tools\vcpkg
+  _VCPKG_LINKAGE: static
+  _VCPKG_TOOLSET: v142
+  _VCPKG_ARCH: x86
+
+# Prepare Cpp environment
+before_build:
+  - ps: |
+      $env:_TRIPLETNAME = $env:_VCPKG_ARCH + "-msvc-" + $env:_VCPKG_TOOLSET + "-" + $env:_VCPKG_LINKAGE
+      $env:_FFMPEG_REF = $env:APPVEYOR_BUILD_VERSION.Substring(0,$env:APPVEYOR_BUILD_VERSION.LastIndexOf('.'))
+      if ($env:APPVEYOR_REPO_TAG -eq "true" -and $env:APPVEYOR_REPO_TAG_NAME) {
+        $env:APPVEYOR_BUILD_VERSION = $env:APPVEYOR_BUILD_VERSION.Substring(0,$env:APPVEYOR_BUILD_VERSION.LastIndexOf('.')) + ".0"
+        $env:_RELEASE_NAME = $env:_RELEASE_NAME + "-v" + $env:APPVEYOR_BUILD_VERSION
+      } else {
+        $env:_RELEASE_NAME = $env:_RELEASE_NAME + "-Canary"
+        $env:APPVEYOR_REPO_TAG_NAME = "canary"
+        $env:_IS_BUILD_CANARY = "true"
+      }
+  # Create triplet file
+  - ps: |
+      Write-Output `
+        "set(VCPKG_TARGET_ARCHITECTURE $env:_VCPKG_ARCH)" `
+        "set(VCPKG_CRT_LINKAGE $env:_VCPKG_LINKAGE)" `
+        "set(VCPKG_LIBRARY_LINKAGE $env:_VCPKG_LINKAGE)" `
+        "set(VCPKG_PLATFORM_TOOLSET $env:_VCPKG_TOOLSET)" `
+        | Out-File -FilePath "$env:_VCPKG_PATH\triplets\$env:_TRIPLETNAME.cmake" -Encoding ascii
+  # Patch Portfile to the FFMpeg version we want to build ( remember to update the SHA512 value to the relative .tar.gz Github tarball file hash)
+  - ps: |
+      $ffmpegPortFile = Get-Content "$env:_VCPKG_PATH\ports\ffmpeg\portfile.cmake"
+      $ffmpegPortFile[5] = "    REF n$env:_FFMPEG_REF"
+      $ffmpegPortFile[6] = "    SHA512 9bbf5af005deeeed98e20258f8965b606923bb58db23d1b8b9849ca4580b70cedd456eb3fe9528b8abee2833e45a9473e6ec5e0076e6bcf12015d507aa59c9e7"
+      $ffmpegPortFile -join "`n" ` | Set-Content "$env:_VCPKG_PATH\ports\ffmpeg\portfile.cmake" -Encoding Ascii -NoNewline
+  # Patch vcpkg_acquire_msys to use AppVeyor Msys2 environment
+  - ps: |
+      $vcpkgMsysCmakeFile = Get-Content "$env:_VCPKG_PATH\scripts\cmake\vcpkg_acquire_msys.cmake"
+      $vcpkgMsysCmakeFile[39] = "  set(TOOLPATH C:/)"
+      $vcpkgMsysCmakeFile -join "`n" ` | Set-Content "$env:_VCPKG_PATH\scripts\cmake\vcpkg_acquire_msys.cmake" -Encoding Ascii -NoNewline
+      $newFile = New-Item -ItemType "file" -Path "C:\initialized-msys2_64.stamp"
+
+build_script:
+  - cmd: |
+      %_VCPKG_PATH%\vcpkg install "ffmpeg[%_FFMPEG_FEATURES%]:%_TRIPLETNAME%" --recurse
+      %_VCPKG_PATH%\vcpkg export "ffmpeg[%_FFMPEG_FEATURES%]:%_TRIPLETNAME%" --output=%_RELEASE_NAME% --zip
+      mv %_VCPKG_PATH%\%_RELEASE_NAME%.zip .
+
+test: off
+
+artifacts:
+  - path: ${_RELEASE_NAME}.zip
+    name: ${_RELEASE_NAME}
+
+# Create a GitHub release for every tag
+deploy:
+  # Deploy only when new tags are pushed
+  - provider: GitHub
+    tag: ${appveyor_repo_tag_name}
+    release: ${_RELEASE_NAME}
+    artifact: ${_RELEASE_NAME}
+    auth_token:
+      secure: SXUyBqg8+wl9fn3xHV2Br0xDH65EyPAnFwJbwcg94wIesv9osQEefC3zxu9iDTUh
+    on:
+      _IS_BUILD_CANARY: false
+  # Deploy on each commit
+  - provider: GitHub
+    tag: ${appveyor_repo_tag_name}
+    release: ${_RELEASE_NAME} v${appveyor_build_version}
+    artifact: ${_RELEASE_NAME}
+    prerelease: true
+    force_update: true
+    auth_token:
+      secure: SXUyBqg8+wl9fn3xHV2Br0xDH65EyPAnFwJbwcg94wIesv9osQEefC3zxu9iDTUh
+    on:
+      _IS_BUILD_CANARY: true
+    description: |
+      This is a canary build. Please be aware it may be prone to crashing and is NOT tested by anyone. Use this build AT YOUR OWN RISK!
