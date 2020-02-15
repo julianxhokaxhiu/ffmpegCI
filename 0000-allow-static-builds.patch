@@ -1,0 +1,15 @@
+diff --git a/libavcodec/libx264.c b/libavcodec/libx264.c
+index ca8f6c0873..9d69a2e9ac 100644
+--- a/libavcodec/libx264.c
++++ b/libavcodec/libx264.c
+@@ -30,10 +30,6 @@
+ #include "avcodec.h"
+ #include "internal.h"
+ 
+-#if defined(_MSC_VER)
+-#define X264_API_IMPORTS 1
+-#endif
+-
+ #include <x264.h>
+ #include <float.h>
+ #include <math.h>

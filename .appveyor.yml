@@ -1,7 +1,7 @@
 # .appveyor.yml
 
 # Build version
-version: '4.2.1.{build}'
+version: '4.2.2.{build}'
 
 # Use the latest available toolchain
 image: Visual Studio 2019
@@ -46,11 +46,21 @@ before_build:
         "set(VCPKG_LIBRARY_LINKAGE $env:_VCPKG_LINKAGE)" `
         "set(VCPKG_PLATFORM_TOOLSET $env:_VCPKG_TOOLSET)" `
         | Out-File -FilePath "$env:_VCPKG_PATH\triplets\$env:_TRIPLETNAME.cmake" -Encoding ascii
+  # Patch Portfile to the x264 version we want to build ( remember to update the SHA512 value to the relative .tar.gz Github tarball file hash)
+  - ps: |
+      $x264PortFile = Get-Content "$env:_VCPKG_PATH\ports\x264\portfile.cmake"
+      $x264PortFile[7] = "    REF stable"
+      $x264PortFile[8] = "    SHA512 7c742d433960d55d1c44aac67533667ef3e4f868bd3ac6686457154366619515a24cae3c759736b3d15f09abd22eb7d005f3ecb1865acf038c1db504147ff8f3"
+      $x264PortFile -join "`n" ` | Set-Content "$env:_VCPKG_PATH\ports\x264\portfile.cmake" -Encoding Ascii -NoNewline
+  # Move patch file to ffmpeg port to allow full static builds
+  - cmd: |
+      mv 0000-allow-static-builds.patch %_VCPKG_PATH%\ports\ffmpeg\
   # Patch Portfile to the FFMpeg version we want to build ( remember to update the SHA512 value to the relative .tar.gz Github tarball file hash)
   - ps: |
       $ffmpegPortFile = Get-Content "$env:_VCPKG_PATH\ports\ffmpeg\portfile.cmake"
       $ffmpegPortFile[5] = "    REF n$env:_FFMPEG_REF"
-      $ffmpegPortFile[6] = "    SHA512 9bbf5af005deeeed98e20258f8965b606923bb58db23d1b8b9849ca4580b70cedd456eb3fe9528b8abee2833e45a9473e6ec5e0076e6bcf12015d507aa59c9e7"
+      $ffmpegPortFile[6] = "    SHA512 3078db33d18967a885b94e101ff07e9a00fdbb05a81e5e0ff8b7f5d19f1326c32b89f58fcf1980dae369616520ea319ddf1fb14ec0c512f338dad3bf9b69811c"
+      $ffmpegPortFile[8] = "    PATCHES`n        0000-allow-static-builds.patch"
       $ffmpegPortFile -join "`n" ` | Set-Content "$env:_VCPKG_PATH\ports\ffmpeg\portfile.cmake" -Encoding Ascii -NoNewline
   # Patch vcpkg_acquire_msys to use AppVeyor Msys2 environment
   - ps: |
