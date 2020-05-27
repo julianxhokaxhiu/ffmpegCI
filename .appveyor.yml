@@ -1,7 +1,7 @@
 # .appveyor.yml
 
 # Build version
-version: '4.2.2.{build}'
+version: '4.2.3.{build}'
 
 # Use the latest available toolchain
 image: Visual Studio 2019
@@ -19,16 +19,16 @@ environment:
   _RELEASE_NAME: ffmpeg
   # FFMpeg features to be built
   _FFMPEG_FEATURES: gpl,x264,vpx,avresample
+  _FFMPEG_TRIPLETNAME: x86-windows-static
   # vcpkg envs
   _VCPKG_PATH: C:\Tools\vcpkg
-  _VCPKG_LINKAGE: static
-  _VCPKG_TOOLSET: v142
-  _VCPKG_ARCH: x86
+  # vc vars
+  VCVARSALLPATH: C:\"Program Files (x86)\Microsoft Visual Studio"\2019\Community\VC\Auxiliary\Build\vcvarsall.bat
+  VCVARSALL: x86
 
 # Prepare Cpp environment
 before_build:
   - ps: |
-      $env:_TRIPLETNAME = $env:_VCPKG_ARCH + "-msvc-" + $env:_VCPKG_TOOLSET + "-" + $env:_VCPKG_LINKAGE
       $env:_FFMPEG_REF = $env:APPVEYOR_BUILD_VERSION.Substring(0,$env:APPVEYOR_BUILD_VERSION.LastIndexOf('.'))
       if ($env:APPVEYOR_REPO_TAG -eq "true" -and $env:APPVEYOR_REPO_TAG_NAME) {
         $env:APPVEYOR_BUILD_VERSION = $env:APPVEYOR_BUILD_VERSION.Substring(0,$env:APPVEYOR_BUILD_VERSION.LastIndexOf('.')) + ".0"
@@ -38,41 +38,16 @@ before_build:
         $env:APPVEYOR_REPO_TAG_NAME = "canary"
         $env:_IS_BUILD_CANARY = "true"
       }
-  # Create triplet file
-  - ps: |
-      Write-Output `
-        "set(VCPKG_TARGET_ARCHITECTURE $env:_VCPKG_ARCH)" `
-        "set(VCPKG_CRT_LINKAGE $env:_VCPKG_LINKAGE)" `
-        "set(VCPKG_LIBRARY_LINKAGE $env:_VCPKG_LINKAGE)" `
-        "set(VCPKG_PLATFORM_TOOLSET $env:_VCPKG_TOOLSET)" `
-        | Out-File -FilePath "$env:_VCPKG_PATH\triplets\$env:_TRIPLETNAME.cmake" -Encoding ascii
-  # Patch Portfile to the x264 version we want to build ( remember to update the SHA512 value to the relative .tar.gz Github tarball file hash)
-  - ps: |
-      $x264PortFile = Get-Content "$env:_VCPKG_PATH\ports\x264\portfile.cmake"
-      $x264PortFile[7] = "    REF stable"
-      $x264PortFile[8] = "    SHA512 7c742d433960d55d1c44aac67533667ef3e4f868bd3ac6686457154366619515a24cae3c759736b3d15f09abd22eb7d005f3ecb1865acf038c1db504147ff8f3"
-      $x264PortFile -join "`n" ` | Set-Content "$env:_VCPKG_PATH\ports\x264\portfile.cmake" -Encoding Ascii -NoNewline
-  # Move patch file to ffmpeg port to allow full static builds
   - cmd: |
-      mv 0000-allow-static-builds.patch %_VCPKG_PATH%\ports\ffmpeg\
-  # Patch Portfile to the FFMpeg version we want to build ( remember to update the SHA512 value to the relative .tar.gz Github tarball file hash)
+      call %VCVARSALLPATH% %VCVARSALL%
+      cp -rf patch/* %_VCPKG_PATH%/
   - ps: |
-      $ffmpegPortFile = Get-Content "$env:_VCPKG_PATH\ports\ffmpeg\portfile.cmake"
-      $ffmpegPortFile[5] = "    REF n$env:_FFMPEG_REF"
-      $ffmpegPortFile[6] = "    SHA512 3078db33d18967a885b94e101ff07e9a00fdbb05a81e5e0ff8b7f5d19f1326c32b89f58fcf1980dae369616520ea319ddf1fb14ec0c512f338dad3bf9b69811c"
-      $ffmpegPortFile[8] = "    PATCHES`n        0000-allow-static-builds.patch"
-      $ffmpegPortFile -join "`n" ` | Set-Content "$env:_VCPKG_PATH\ports\ffmpeg\portfile.cmake" -Encoding Ascii -NoNewline
-  # Patch vcpkg_acquire_msys to use AppVeyor Msys2 environment
-  - ps: |
-      $vcpkgMsysCmakeFile = Get-Content "$env:_VCPKG_PATH\scripts\cmake\vcpkg_acquire_msys.cmake"
-      $vcpkgMsysCmakeFile[39] = "  set(TOOLPATH C:/)"
-      $vcpkgMsysCmakeFile -join "`n" ` | Set-Content "$env:_VCPKG_PATH\scripts\cmake\vcpkg_acquire_msys.cmake" -Encoding Ascii -NoNewline
       $newFile = New-Item -ItemType "file" -Path "C:\initialized-msys2_64.stamp"
 
 build_script:
   - cmd: |
-      %_VCPKG_PATH%\vcpkg install "ffmpeg[%_FFMPEG_FEATURES%]:%_TRIPLETNAME%" --recurse
-      %_VCPKG_PATH%\vcpkg export "ffmpeg[%_FFMPEG_FEATURES%]:%_TRIPLETNAME%" --output=%_RELEASE_NAME% --zip
+      %_VCPKG_PATH%\vcpkg install "ffmpeg[%_FFMPEG_FEATURES%]:%_FFMPEG_TRIPLETNAME%" --recurse
+      %_VCPKG_PATH%\vcpkg export "ffmpeg[%_FFMPEG_FEATURES%]:%_FFMPEG_TRIPLETNAME%" --output=%_RELEASE_NAME% --zip
       mv %_VCPKG_PATH%\%_RELEASE_NAME%.zip .
 
 test: off
