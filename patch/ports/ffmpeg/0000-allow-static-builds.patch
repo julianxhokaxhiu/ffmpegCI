@@ -5,7 +5,7 @@ index d4b1fd0d53..67d161899e 100644
 @@ -31,10 +31,6 @@
  #include "internal.h"
  #include "packet_internal.h"
-
+ 
 -#if defined(_MSC_VER)
 -#define X264_API_IMPORTS 1
 -#endif
