@@ -1,8 +1,8 @@
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO ffmpeg/ffmpeg
-    REF n4.3
-    SHA512 2b7d70cf0e7e78eeee0dfa0f96c6b628fde3fe49461a8609f8ec1934d718b43d6c2a924cc5c5c515842a5f4037ab7290affc317e1e15e2c9c8e0afc8b5d4aa95
+    REF n4.3.1
+    SHA512 9d533f6db97e8eccb77d78d0b55112ce039580b570d2a98c4204199abe5a4b0f448c44b30048329f6c912579f8ff48385d5100f9e484709b9fd8f4b3935b5031
     HEAD_REF master
     PATCHES
         0000-allow-static-builds.patch
