@@ -17,7 +17,7 @@ Write-Host "##vso[task.setvariable variable=_BUILD_VERSION;]${env:_BUILD_VERSION
 Write-Host "##vso[task.setvariable variable=_RELEASE_VERSION;]${env:_RELEASE_VERSION}"
 Write-Host "##vso[task.setvariable variable=_IS_BUILD_CANARY;]${env:_IS_BUILD_CANARY}"
 
-Copy-Item patch\* $vcpkgRoot\ -Recurse -Force
+git -C $vcpkgRoot pull
 
 vcpkg install "ffmpeg[${env:_FFMPEG_FEATURES}]:${env:_FFMPEG_TRIPLETNAME}" --recurse
 vcpkg export "ffmpeg[${env:_FFMPEG_FEATURES}]:${env:_FFMPEG_TRIPLETNAME}" --output="${env:_RELEASE_NAME}-${env:_RELEASE_VERSION}_${env:_RELEASE_CONFIGURATION}" --zip

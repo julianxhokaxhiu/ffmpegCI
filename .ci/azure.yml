@@ -18,7 +18,7 @@ variables:
   _BUILD_VERSION: $(Build.BuildNumber)
   _BUILD_BRANCH: $(Build.SourceBranch)
   # FFMpeg features to be built
-  _FFMPEG_FEATURES: gpl,x264,vpx,avresample
+  _FFMPEG_FEATURES: core,avcodec,nvcodec,avfilter,avformat,avresample,swresample,swscale,gpl,opus,speex,theora,vorbis,vpx,wavpack,x264,x265
   _FFMPEG_TRIPLETNAME: x86-windows-static
 
 pool:
