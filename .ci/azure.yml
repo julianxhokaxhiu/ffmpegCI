@@ -1,6 +1,6 @@
 # Azure Pipeline YAML file
 
-name: 4.3.2$(Rev:.r)
+name: 4.4.0$(Rev:.r)
 
 trigger:
   branches:
@@ -18,7 +18,7 @@ variables:
   _BUILD_VERSION: $(Build.BuildNumber)
   _BUILD_BRANCH: $(Build.SourceBranch)
   # FFMpeg features to be built
-  _FFMPEG_FEATURES: core,avcodec,nvcodec,avfilter,avformat,avresample,swresample,swscale,gpl,opus,speex,theora,vorbis,vpx,wavpack,x264,x265
+  _FFMPEG_FEATURES: avcodec,avdevice,avfilter,avformat,avresample,postproc,swresample,swscale,nvcodec,gpl,opus,speex,theora,vorbis,vpx,x264,x265
   _FFMPEG_TRIPLETNAME: x86-windows-static
 
 pool:
